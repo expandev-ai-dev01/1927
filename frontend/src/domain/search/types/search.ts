@@ -46,6 +46,7 @@ export interface Product {
     width?: number;
     depth?: number;
   };
+  createdAt: string;
 }
 
 export interface SearchResult {
@@ -54,20 +55,6 @@ export interface SearchResult {
   pageNumber: number;
   pageSize: number;
   totalPages: number;
-}
-
-export interface SearchSuggestion {
-  text: string;
-  type: 'product' | 'category' | 'term';
-  resultCount?: number;
-}
-
-export interface SearchHistoryItem {
-  id: number;
-  searchTerm: string;
-  filters?: string;
-  resultCount: number;
-  createdAt: string;
 }
 
 export interface FilterOption {
@@ -92,9 +79,22 @@ export interface FilterOptions {
   };
 }
 
+export interface SearchSuggestion {
+  text: string;
+  type: 'product' | 'category' | 'term';
+  priority: number;
+}
+
+export interface SearchHistoryItem {
+  id: number;
+  searchTerm: string;
+  filters?: string;
+  resultCount: number;
+  createdAt: string;
+}
+
 export interface AppliedFilter {
   type: 'category' | 'price' | 'material' | 'color' | 'style' | 'dimension';
   label: string;
   value: string | number;
-  filterKey: string;
 }

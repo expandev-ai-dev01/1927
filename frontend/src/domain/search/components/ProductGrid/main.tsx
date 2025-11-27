@@ -13,12 +13,12 @@ function ProductGrid({
 }: ProductGridProps) {
   if (isLoading) {
     return (
-      <div className={cn('space-y-4', className)}>
+      <div className={cn('space-y-6', className)}>
         <div className="flex items-center justify-between">
           <div className="bg-muted h-6 w-32 animate-pulse rounded" />
           <div className="flex gap-2">
-            <div className="bg-muted h-10 w-10 animate-pulse rounded" />
-            <div className="bg-muted h-10 w-10 animate-pulse rounded" />
+            <div className="bg-muted h-9 w-9 animate-pulse rounded" />
+            <div className="bg-muted h-9 w-9 animate-pulse rounded" />
           </div>
         </div>
         <div
@@ -39,32 +39,30 @@ function ProductGrid({
 
   if (products.length === 0) {
     return (
-      <div className={cn('bg-card rounded-lg border p-12 text-center shadow-sm', className)}>
-        <div className="mx-auto max-w-md space-y-4">
-          <div className="bg-muted mx-auto flex h-16 w-16 items-center justify-center rounded-full">
-            <Grid className="text-muted-foreground h-8 w-8" />
-          </div>
-          <h3 className="text-lg font-semibold">Nenhum produto encontrado</h3>
-          <p className="text-muted-foreground text-sm">
-            Tente ajustar seus filtros ou realizar uma nova busca
-          </p>
+      <div className={cn('flex flex-col items-center justify-center py-16', className)}>
+        <div className="bg-muted mb-4 rounded-full p-6">
+          <Grid className="text-muted-foreground h-12 w-12" />
         </div>
+        <h3 className="mb-2 text-xl font-semibold">Nenhum produto encontrado</h3>
+        <p className="text-muted-foreground text-center">
+          Tente ajustar seus filtros ou realizar uma nova busca
+        </p>
       </div>
     );
   }
 
   return (
-    <div className={cn('space-y-4', className)}>
+    <div className={cn('space-y-6', className)}>
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground text-sm">
-          {products.length} produto{products.length !== 1 ? 's' : ''} encontrado
-          {products.length !== 1 ? 's' : ''}
+          {products.length} {products.length === 1 ? 'produto encontrado' : 'produtos encontrados'}
         </p>
         <div className="flex gap-2">
           <Button
             variant={viewMode === 'grade' ? 'default' : 'outline'}
             size="icon"
             onClick={() => onViewModeChange?.('grade')}
+            className="h-9 w-9"
           >
             <Grid className="h-4 w-4" />
           </Button>
@@ -72,6 +70,7 @@ function ProductGrid({
             variant={viewMode === 'lista' ? 'default' : 'outline'}
             size="icon"
             onClick={() => onViewModeChange?.('lista')}
+            className="h-9 w-9"
           >
             <List className="h-4 w-4" />
           </Button>

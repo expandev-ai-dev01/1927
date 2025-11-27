@@ -1,18 +1,25 @@
 import { useQuery } from '@tanstack/react-query';
 import { searchService } from '../../services/searchService';
-import { useSearchStore } from '../../stores/searchStore';
+import type { SearchFilters, FilterOptions } from '../../types/search';
 
-export const useFilterOptions = () => {
-  const { filters } = useSearchStore();
+export interface UseFilterOptionsOptions {
+  currentFilters?: SearchFilters;
+  enabled?: boolean;
+}
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['filterOptions', filters],
-    queryFn: () => searchService.getFilterOptions(filters),
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours
+export const useFilterOptions = (options: UseFilterOptionsOptions = {}) => {
+  const queryKey = ['search', 'filter-options', options.currentFilters];
+
+  const { data, isLoading, error } = useQuery<FilterOptions>({
+    queryKey,
+    queryFn: () => searchService.getFilterOptions(options.currentFilters),
+    enabled: options.enabled !== false,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours cache
   });
 
   return {
     filterOptions: data,
     isLoading,
+    error,
   };
 };

@@ -1,15 +1,16 @@
 import { useState } from 'react';
-import { Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, X } from 'lucide-react';
 import { Button } from '@/core/components/button';
 import { Checkbox } from '@/core/components/checkbox';
 import { Label } from '@/core/components/label';
 import { Slider } from '@/core/components/slider';
 import { cn } from '@/core/lib/utils';
 import { useFilterOptions } from '../../hooks/useFilterOptions';
+import { formatPrice } from '../../utils/filterUtils';
 import type { FilterPanelProps } from './types';
 
 function FilterPanel({ filters, onFiltersChange, className }: FilterPanelProps) {
-  const { filterOptions, isLoading } = useFilterOptions();
+  const { filterOptions, isLoading } = useFilterOptions({ currentFilters: filters });
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     categories: true,
     price: true,
@@ -24,31 +25,27 @@ function FilterPanel({ filters, onFiltersChange, className }: FilterPanelProps) 
   };
 
   const handleCategoryChange = (category: string, checked: boolean) => {
-    const newCategories = checked
-      ? [...(filters.categories || []), category]
-      : (filters.categories || []).filter((c) => c !== category);
-    onFiltersChange({ ...filters, categories: newCategories });
+    const current = filters.categories ?? [];
+    const updated = checked ? [...current, category] : current.filter((c) => c !== category);
+    onFiltersChange({ ...filters, categories: updated.length > 0 ? updated : undefined });
   };
 
   const handleMaterialChange = (material: string, checked: boolean) => {
-    const newMaterials = checked
-      ? [...(filters.materials || []), material]
-      : (filters.materials || []).filter((m) => m !== material);
-    onFiltersChange({ ...filters, materials: newMaterials });
+    const current = filters.materials ?? [];
+    const updated = checked ? [...current, material] : current.filter((m) => m !== material);
+    onFiltersChange({ ...filters, materials: updated.length > 0 ? updated : undefined });
   };
 
   const handleColorChange = (color: string, checked: boolean) => {
-    const newColors = checked
-      ? [...(filters.colors || []), color]
-      : (filters.colors || []).filter((c) => c !== color);
-    onFiltersChange({ ...filters, colors: newColors });
+    const current = filters.colors ?? [];
+    const updated = checked ? [...current, color] : current.filter((c) => c !== color);
+    onFiltersChange({ ...filters, colors: updated.length > 0 ? updated : undefined });
   };
 
   const handleStyleChange = (style: string, checked: boolean) => {
-    const newStyles = checked
-      ? [...(filters.styles || []), style]
-      : (filters.styles || []).filter((s) => s !== style);
-    onFiltersChange({ ...filters, styles: newStyles });
+    const current = filters.styles ?? [];
+    const updated = checked ? [...current, style] : current.filter((s) => s !== style);
+    onFiltersChange({ ...filters, styles: updated.length > 0 ? updated : undefined });
   };
 
   const handlePriceChange = (values: number[]) => {
@@ -65,14 +62,9 @@ function FilterPanel({ filters, onFiltersChange, className }: FilterPanelProps) 
 
   if (isLoading) {
     return (
-      <div className={cn('bg-card rounded-lg border p-6 shadow-sm', className)}>
-        <div className="animate-pulse space-y-4">
-          <div className="bg-muted h-6 w-32 rounded" />
-          <div className="space-y-2">
-            <div className="bg-muted h-4 w-full rounded" />
-            <div className="bg-muted h-4 w-full rounded" />
-            <div className="bg-muted h-4 w-full rounded" />
-          </div>
+      <div className={cn('bg-card space-y-4 rounded-lg border p-6 shadow-sm', className)}>
+        <div className="flex items-center justify-center py-8">
+          <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />
         </div>
       </div>
     );
@@ -80,89 +72,104 @@ function FilterPanel({ filters, onFiltersChange, className }: FilterPanelProps) 
 
   if (!filterOptions) return null;
 
+  const hasActiveFilters =
+    (filters.categories?.length ?? 0) > 0 ||
+    (filters.materials?.length ?? 0) > 0 ||
+    (filters.colors?.length ?? 0) > 0 ||
+    (filters.styles?.length ?? 0) > 0 ||
+    filters.priceMin !== undefined ||
+    filters.priceMax !== undefined;
+
   return (
-    <div className={cn('bg-card rounded-lg border shadow-sm', className)}>
-      <div className="flex items-center justify-between border-b p-4">
-        <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          <h2 className="text-lg font-semibold">Filtros</h2>
-        </div>
-        <Button variant="ghost" size="sm" onClick={handleClearFilters}>
-          Limpar
-        </Button>
+    <div className={cn('bg-card space-y-4 rounded-lg border p-6 shadow-sm', className)}>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Filtros</h2>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={handleClearFilters} className="h-8 text-xs">
+            <X className="mr-1 h-3 w-3" />
+            Limpar
+          </Button>
+        )}
       </div>
 
-      <div className="divide-y">
-        {/* Categories */}
-        <div className="p-4">
-          <button
-            onClick={() => toggleSection('categories')}
-            className="flex w-full items-center justify-between text-sm font-medium"
-          >
-            <span>Categorias</span>
-            {expandedSections.categories ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-          {expandedSections.categories && (
-            <div className="mt-3 space-y-2">
-              {filterOptions.categories.map((cat) => (
-                <div key={cat.name} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`cat-${cat.name}`}
-                    checked={filters.categories?.includes(cat.name)}
-                    onCheckedChange={(checked) =>
-                      handleCategoryChange(cat.name, checked as boolean)
-                    }
-                  />
-                  <Label htmlFor={`cat-${cat.name}`} className="flex-1 cursor-pointer text-sm">
-                    {cat.name}
-                    <span className="text-muted-foreground ml-1 text-xs">({cat.count})</span>
-                  </Label>
-                </div>
-              ))}
-            </div>
+      {/* Categories */}
+      <div className="space-y-3 border-t pt-4">
+        <button
+          type="button"
+          onClick={() => toggleSection('categories')}
+          className="flex w-full items-center justify-between text-sm font-medium"
+        >
+          <span>Categorias</span>
+          {expandedSections.categories ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
           )}
-        </div>
-
-        {/* Price Range */}
-        <div className="p-4">
-          <button
-            onClick={() => toggleSection('price')}
-            className="flex w-full items-center justify-between text-sm font-medium"
-          >
-            <span>Faixa de Preço</span>
-            {expandedSections.price ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-          {expandedSections.price && (
-            <div className="mt-4 space-y-4">
-              <Slider
-                min={filterOptions.priceRange.min}
-                max={filterOptions.priceRange.max}
-                step={10}
-                value={[
-                  filters.priceMin ?? filterOptions.priceRange.min,
-                  filters.priceMax ?? filterOptions.priceRange.max,
-                ]}
-                onValueChange={handlePriceChange}
-              />
-              <div className="text-muted-foreground flex items-center justify-between text-sm">
-                <span>R$ {(filters.priceMin ?? filterOptions.priceRange.min).toFixed(2)}</span>
-                <span>R$ {(filters.priceMax ?? filterOptions.priceRange.max).toFixed(2)}</span>
+        </button>
+        {expandedSections.categories && (
+          <div className="space-y-2">
+            {filterOptions.categories.map((option) => (
+              <div key={option.value} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`cat-${option.value}`}
+                  checked={filters.categories?.includes(option.value) ?? false}
+                  onCheckedChange={(checked) =>
+                    handleCategoryChange(option.value, checked as boolean)
+                  }
+                />
+                <Label
+                  htmlFor={`cat-${option.value}`}
+                  className="flex flex-1 cursor-pointer items-center justify-between text-sm"
+                >
+                  <span>{option.label}</span>
+                  <span className="text-muted-foreground text-xs">({option.count})</span>
+                </Label>
               </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
+      </div>
 
-        {/* Materials */}
-        <div className="p-4">
+      {/* Price Range */}
+      <div className="space-y-3 border-t pt-4">
+        <button
+          type="button"
+          onClick={() => toggleSection('price')}
+          className="flex w-full items-center justify-between text-sm font-medium"
+        >
+          <span>Preço</span>
+          {expandedSections.price ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </button>
+        {expandedSections.price && (
+          <div className="space-y-4">
+            <Slider
+              min={filterOptions.priceRange.min}
+              max={filterOptions.priceRange.max}
+              step={10}
+              value={[
+                filters.priceMin ?? filterOptions.priceRange.min,
+                filters.priceMax ?? filterOptions.priceRange.max,
+              ]}
+              onValueChange={handlePriceChange}
+              className="w-full"
+            />
+            <div className="text-muted-foreground flex items-center justify-between text-xs">
+              <span>{formatPrice(filters.priceMin ?? filterOptions.priceRange.min)}</span>
+              <span>{formatPrice(filters.priceMax ?? filterOptions.priceRange.max)}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Materials */}
+      {filterOptions.materials.length > 0 && (
+        <div className="space-y-3 border-t pt-4">
           <button
+            type="button"
             onClick={() => toggleSection('materials')}
             className="flex w-full items-center justify-between text-sm font-medium"
           >
@@ -174,29 +181,35 @@ function FilterPanel({ filters, onFiltersChange, className }: FilterPanelProps) 
             )}
           </button>
           {expandedSections.materials && (
-            <div className="mt-3 space-y-2">
-              {filterOptions.materials.map((mat) => (
-                <div key={mat.name} className="flex items-center space-x-2">
+            <div className="space-y-2">
+              {filterOptions.materials.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`mat-${mat.name}`}
-                    checked={filters.materials?.includes(mat.name)}
+                    id={`mat-${option.value}`}
+                    checked={filters.materials?.includes(option.value) ?? false}
                     onCheckedChange={(checked) =>
-                      handleMaterialChange(mat.name, checked as boolean)
+                      handleMaterialChange(option.value, checked as boolean)
                     }
                   />
-                  <Label htmlFor={`mat-${mat.name}`} className="flex-1 cursor-pointer text-sm">
-                    {mat.name}
-                    <span className="text-muted-foreground ml-1 text-xs">({mat.count})</span>
+                  <Label
+                    htmlFor={`mat-${option.value}`}
+                    className="flex flex-1 cursor-pointer items-center justify-between text-sm"
+                  >
+                    <span>{option.label}</span>
+                    <span className="text-muted-foreground text-xs">({option.count})</span>
                   </Label>
                 </div>
               ))}
             </div>
           )}
         </div>
+      )}
 
-        {/* Colors */}
-        <div className="p-4">
+      {/* Colors */}
+      {filterOptions.colors.length > 0 && (
+        <div className="space-y-3 border-t pt-4">
           <button
+            type="button"
             onClick={() => toggleSection('colors')}
             className="flex w-full items-center justify-between text-sm font-medium"
           >
@@ -208,27 +221,35 @@ function FilterPanel({ filters, onFiltersChange, className }: FilterPanelProps) 
             )}
           </button>
           {expandedSections.colors && (
-            <div className="mt-3 space-y-2">
-              {filterOptions.colors.map((color) => (
-                <div key={color.name} className="flex items-center space-x-2">
+            <div className="space-y-2">
+              {filterOptions.colors.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`color-${color.name}`}
-                    checked={filters.colors?.includes(color.name)}
-                    onCheckedChange={(checked) => handleColorChange(color.name, checked as boolean)}
+                    id={`col-${option.value}`}
+                    checked={filters.colors?.includes(option.value) ?? false}
+                    onCheckedChange={(checked) =>
+                      handleColorChange(option.value, checked as boolean)
+                    }
                   />
-                  <Label htmlFor={`color-${color.name}`} className="flex-1 cursor-pointer text-sm">
-                    {color.name}
-                    <span className="text-muted-foreground ml-1 text-xs">({color.count})</span>
+                  <Label
+                    htmlFor={`col-${option.value}`}
+                    className="flex flex-1 cursor-pointer items-center justify-between text-sm"
+                  >
+                    <span>{option.label}</span>
+                    <span className="text-muted-foreground text-xs">({option.count})</span>
                   </Label>
                 </div>
               ))}
             </div>
           )}
         </div>
+      )}
 
-        {/* Styles */}
-        <div className="p-4">
+      {/* Styles */}
+      {filterOptions.styles.length > 0 && (
+        <div className="space-y-3 border-t pt-4">
           <button
+            type="button"
             onClick={() => toggleSection('styles')}
             className="flex w-full items-center justify-between text-sm font-medium"
           >
@@ -240,24 +261,29 @@ function FilterPanel({ filters, onFiltersChange, className }: FilterPanelProps) 
             )}
           </button>
           {expandedSections.styles && (
-            <div className="mt-3 space-y-2">
-              {filterOptions.styles.map((style) => (
-                <div key={style.name} className="flex items-center space-x-2">
+            <div className="space-y-2">
+              {filterOptions.styles.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
                   <Checkbox
-                    id={`style-${style.name}`}
-                    checked={filters.styles?.includes(style.name)}
-                    onCheckedChange={(checked) => handleStyleChange(style.name, checked as boolean)}
+                    id={`sty-${option.value}`}
+                    checked={filters.styles?.includes(option.value) ?? false}
+                    onCheckedChange={(checked) =>
+                      handleStyleChange(option.value, checked as boolean)
+                    }
                   />
-                  <Label htmlFor={`style-${style.name}`} className="flex-1 cursor-pointer text-sm">
-                    {style.name}
-                    <span className="text-muted-foreground ml-1 text-xs">({style.count})</span>
+                  <Label
+                    htmlFor={`sty-${option.value}`}
+                    className="flex flex-1 cursor-pointer items-center justify-between text-sm"
+                  >
+                    <span>{option.label}</span>
+                    <span className="text-muted-foreground text-xs">({option.count})</span>
                   </Label>
                 </div>
               ))}
             </div>
           )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
