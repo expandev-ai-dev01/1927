@@ -1,4 +1,4 @@
-export * from './useSearchProducts';
+export * from './useSearch';
 export * from './useFilterOptions';
-export * from './useSearchSuggestions';
+export * from './useSuggestions';
 export * from './useSearchHistory';

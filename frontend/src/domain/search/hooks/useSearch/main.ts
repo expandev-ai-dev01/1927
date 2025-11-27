@@ -1,48 +1,34 @@
-import { useQuery } from '@tanstack/react-query';
-import { useSearchStore } from '../../stores/searchStore';
-import { searchService } from '../../services/searchService';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { searchService } from '../../services';
 import type { SearchParams } from '../../types';
 
-export const useSearch = () => {
-  const { searchTerm, filters, sortBy, currentPage, itemsPerPage, addToHistory } = useSearchStore();
-
-  const searchParams: SearchParams = {
-    termo_busca: searchTerm || undefined,
-    filtros: Object.keys(filters).length > 0 ? filters : undefined,
-    ordenacao: sortBy,
-    pagina_atual: currentPage,
-    itens_por_pagina: itemsPerPage,
-  };
+export const useSearch = (params: SearchParams) => {
+  const queryClient = useQueryClient();
+  const queryKey = ['search', 'products', params];
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['search', searchParams],
-    queryFn: async () => {
-      const result = await searchService.search(searchParams);
+    queryKey,
+    queryFn: () => searchService.searchProducts(params),
+    enabled: !!params.searchTerm || !!params.productCode || !!params.filters,
+  });
 
-      // Add to history if there's a search term
-      if (searchTerm) {
-        addToHistory({
-          termo: searchTerm,
-          filtros: filters,
-          data: new Date().toISOString(),
-          total_resultados: result.total,
-        });
-      }
-
-      return result;
+  const { mutateAsync: recordHistory } = useMutation({
+    mutationFn: (historyParams: { searchTerm: string; filters?: string; resultCount: number }) =>
+      searchService.createHistory(historyParams),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['search', 'history'] });
     },
-    enabled: !!searchTerm || Object.keys(filters).length > 0,
   });
 
   return {
-    results: data?.resultados || [],
-    total: data?.total || 0,
-    totalPages: data?.total_paginas || 0,
-    currentPage: data?.pagina_atual || 1,
-    suggestions: data?.sugestoes_alternativas || [],
-    relatedProducts: data?.produtos_relacionados || [],
+    products: data?.products ?? [],
+    totalCount: data?.totalCount ?? 0,
+    page: data?.page ?? 1,
+    pageSize: data?.pageSize ?? 24,
+    totalPages: data?.totalPages ?? 0,
     isLoading,
     error,
     refetch,
+    recordHistory,
   };
 };

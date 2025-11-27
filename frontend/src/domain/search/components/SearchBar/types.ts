@@ -1,4 +1,4 @@
 export interface SearchBarProps {
-  onSearch?: (term: string) => void | Promise<void>;
+  onSearch?: () => void;
   className?: string;
 }

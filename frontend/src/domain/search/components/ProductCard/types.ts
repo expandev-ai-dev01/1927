@@ -1,6 +1,7 @@
-import type { SearchResult } from '../../types';
+import type { Product } from '../../types';
 
 export interface ProductCardProps {
-  product: SearchResult;
+  product: Product;
+  viewMode: 'grade' | 'lista';
   className?: string;
 }

@@ -1,14 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { SearchFilters } from '../types/search';
-
-interface FavoriteSearch {
-  id: string;
-  name: string;
-  searchTerm?: string;
-  filters?: SearchFilters;
-  createdAt: string;
-}
+import type { SearchFilters, AppliedFilter } from '../types';
 
 interface SearchStore {
   searchTerm: string;
@@ -16,18 +8,19 @@ interface SearchStore {
   sortBy: 'relevancia' | 'nome_asc' | 'nome_desc' | 'preco_asc' | 'preco_desc' | 'data_cadastro_desc';
   viewMode: 'grade' | 'lista';
   pageSize: 12 | 24 | 36 | 48;
-  favoriteSearches: FavoriteSearch[];
+  page: number;
+  appliedFilters: AppliedFilter[];
 
   setSearchTerm: (term: string) => void;
   setFilters: (filters: SearchFilters) => void;
   updateFilter: (key: keyof SearchFilters, value: any) => void;
+  removeFilter: (type: AppliedFilter['type'], value: string) => void;
   clearFilters: () => void;
   setSortBy: (sortBy: SearchStore['sortBy']) => void;
   setViewMode: (mode: 'grade' | 'lista') => void;
   setPageSize: (size: 12 | 24 | 36 | 48) => void;
-  addFavoriteSearch: (name: string, searchTerm?: string, filters?: SearchFilters) => void;
-  removeFavoriteSearch: (id: string) => void;
-  loadFavoriteSearch: (id: string) => void;
+  setPage: (page: number) => void;
+  updateAppliedFilters: () => void;
 }
 
 export const useSearchStore = create<SearchStore>()(n  persist(
@@ -37,59 +30,123 @@ export const useSearchStore = create<SearchStore>()(n  persist(
       sortBy: 'relevancia',
       viewMode: 'grade',
       pageSize: 24,
-      favoriteSearches: [],
+      page: 1,
+      appliedFilters: [],
 
-      setSearchTerm: (term) => set({ searchTerm: term }),
+      setSearchTerm: (term) => set({ searchTerm: term, page: 1 }),
 
-      setFilters: (filters) => set({ filters }),
+      setFilters: (filters) => {
+        set({ filters, page: 1 });
+        get().updateAppliedFilters();
+      },
 
-      updateFilter: (key, value) =>
-        set((state) => ({
-          filters: {
-            ...state.filters,
-            [key]: value,
-          },
-        })),
+      updateFilter: (key, value) => {
+        const currentFilters = get().filters;
+        set({ filters: { ...currentFilters, [key]: value }, page: 1 });
+        get().updateAppliedFilters();
+      },
 
-      clearFilters: () => set({ filters: {} }),
+      removeFilter: (type, value) => {
+        const currentFilters = get().filters;
+        const newFilters = { ...currentFilters };
 
-      setSortBy: (sortBy) => set({ sortBy }),
+        switch (type) {
+          case 'category':
+            newFilters.categories = currentFilters.categories?.filter((c) => c !== value);
+            break;
+          case 'material':
+            newFilters.materials = currentFilters.materials?.filter((m) => m !== value);
+            break;
+          case 'color':
+            newFilters.colors = currentFilters.colors?.filter((c) => c !== value);
+            break;
+          case 'style':
+            newFilters.styles = currentFilters.styles?.filter((s) => s !== value);
+            break;
+          case 'price':
+            newFilters.priceMin = null;
+            newFilters.priceMax = null;
+            break;
+          case 'dimensions':
+            newFilters.heightMin = null;
+            newFilters.heightMax = null;
+            newFilters.widthMin = null;
+            newFilters.widthMax = null;
+            newFilters.depthMin = null;
+            newFilters.depthMax = null;
+            break;
+        }
+
+        set({ filters: newFilters, page: 1 });
+        get().updateAppliedFilters();
+      },
+
+      clearFilters: () => {
+        set({ filters: {}, page: 1, appliedFilters: [] });
+      },
+
+      setSortBy: (sortBy) => set({ sortBy, page: 1 }),
 
       setViewMode: (mode) => set({ viewMode: mode }),
 
-      setPageSize: (size) => set({ pageSize: size }),
+      setPageSize: (size) => set({ pageSize: size, page: 1 }),
 
-      addFavoriteSearch: (name, searchTerm, filters) => {
-        const newFavorite: FavoriteSearch = {
-          id: Date.now().toString(),
-          name,
-          searchTerm,
-          filters,
-          createdAt: new Date().toISOString(),
-        };
+      setPage: (page) => set({ page }),
 
-        set((state) => ({
-          favoriteSearches: [...state.favoriteSearches, newFavorite],
-        }));
-      },
+      updateAppliedFilters: () => {
+        const { filters } = get();
+        const applied: AppliedFilter[] = [];
 
-      removeFavoriteSearch: (id) =>
-        set((state) => ({
-          favoriteSearches: state.favoriteSearches.filter((fav) => fav.id !== id),
-        })),
+        filters.categories?.forEach((cat) => {
+          applied.push({ type: 'category', label: 'Categoria', value: cat });
+        });
 
-      loadFavoriteSearch: (id) => {
-        const favorite = get().favoriteSearches.find((fav) => fav.id === id);
-        if (favorite) {
-          set({
-            searchTerm: favorite.searchTerm ?? '',
-            filters: favorite.filters ?? {},
+        if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
+          const min = filters.priceMin ?? 0;
+          const max = filters.priceMax ?? '∞';
+          applied.push({
+            type: 'price',
+            label: 'Preço',
+            value: `R$ ${min} - ${max}`,
           });
         }
+
+        filters.materials?.forEach((mat) => {
+          applied.push({ type: 'material', label: 'Material', value: mat });
+        });
+
+        filters.colors?.forEach((col) => {
+          applied.push({ type: 'color', label: 'Cor', value: col });
+        });
+
+        filters.styles?.forEach((sty) => {
+          applied.push({ type: 'style', label: 'Estilo', value: sty });
+        });
+
+        if (
+          filters.heightMin !== undefined ||
+          filters.heightMax !== undefined ||
+          filters.widthMin !== undefined ||
+          filters.widthMax !== undefined ||
+          filters.depthMin !== undefined ||
+          filters.depthMax !== undefined
+        ) {
+          applied.push({
+            type: 'dimensions',
+            label: 'Dimensões',
+            value: 'Personalizado',
+          });
+        }
+
+        set({ appliedFilters: applied });
       },
     }),
     {
       name: 'search-store',
+      partialize: (state) => ({
+        viewMode: state.viewMode,
+        pageSize: state.pageSize,
+      }),
     }
   )
 );

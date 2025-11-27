@@ -3,9 +3,8 @@ export type {
   SearchParams,
   Product,
   SearchResult,
-  FilterOption,
   FilterOptions,
   SearchSuggestion,
-  SearchHistoryItem,
+  SearchHistory,
   AppliedFilter,
 } from './search';

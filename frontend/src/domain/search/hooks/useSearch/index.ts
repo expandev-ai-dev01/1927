@@ -1,1 +1,1 @@
-export { useSearch } from './main';
+export * from './main';
