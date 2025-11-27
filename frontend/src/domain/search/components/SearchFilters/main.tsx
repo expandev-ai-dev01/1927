@@ -3,7 +3,14 @@ import { Filter, X, ChevronDown } from 'lucide-react';
 import { Button } from '@/core/components/button';
 import { Label } from '@/core/components/label';
 import { Checkbox } from '@/core/components/checkbox';
-import { Input } from '@/core/components/input';
+import { Slider } from '@/core/components/slider';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/core/components/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/core/components/collapsible';
 import { useSearchStore } from '../../stores/searchStore';
 import { useFilterOptions } from '../../hooks/useFilterOptions';
@@ -12,225 +19,270 @@ import type { SearchFiltersProps } from './types';
 
 function SearchFilters({ className }: SearchFiltersProps) {
   const { filters, updateFilter, clearFilters } = useSearchStore();
-  const { options, isLoading } = useFilterOptions();
+  const { filterOptions, isLoading } = useFilterOptions();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    categoria: true,
-    preco: true,
-    material: false,
-    cor: false,
-    estilo: false,
-    dimensoes: false,
+    categories: true,
+    price: true,
+    materials: false,
+    colors: false,
+    styles: false,
+    dimensions: false,
   });
 
   const toggleSection = (section: string) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const handleCheckboxChange = (
-    filterKey: 'categoria' | 'material' | 'cor' | 'estilo',
-    value: string
-  ) => {
-    const currentValues = filters[filterKey] || [];
-    const newValues = currentValues.includes(value)
-      ? currentValues.filter((v) => v !== value)
-      : [...currentValues, value];
-    updateFilter(filterKey, newValues.length > 0 ? newValues : undefined);
+  const handleCategoryChange = (category: string, checked: boolean) => {
+    const current = filters.categories || [];
+    const updated = checked ? [...current, category] : current.filter((c) => c !== category);
+    updateFilter('categories', updated);
   };
 
-  const handlePriceChange = (type: 'minimo' | 'maximo', value: string) => {
-    const numValue = value === '' ? null : Number(value);
-    updateFilter('faixa_preco', {
-      ...filters.faixa_preco,
-      [type]: numValue,
-    });
+  const handleMaterialChange = (material: string, checked: boolean) => {
+    const current = filters.materials || [];
+    const updated = checked ? [...current, material] : current.filter((m) => m !== material);
+    updateFilter('materials', updated);
   };
 
-  const handleDimensionChange = (
-    dimension: 'altura' | 'largura' | 'profundidade',
-    type: 'minimo' | 'maximo',
-    value: string
-  ) => {
-    const numValue = value === '' ? null : Number(value);
-    updateFilter('dimensoes', {
-      ...filters.dimensoes,
-      [dimension]: {
-        ...(filters.dimensoes?.[dimension] || {}),
-        [type]: numValue,
-      },
-    });
+  const handleColorChange = (color: string, checked: boolean) => {
+    const current = filters.colors || [];
+    const updated = checked ? [...current, color] : current.filter((c) => c !== color);
+    updateFilter('colors', updated);
   };
 
-  if (isLoading) {
+  const handleStyleChange = (style: string, checked: boolean) => {
+    const current = filters.styles || [];
+    const updated = checked ? [...current, style] : current.filter((s) => s !== style);
+    updateFilter('styles', updated);
+  };
+
+  const handlePriceChange = (values: number[]) => {
+    updateFilter('priceMin', values[0]);
+    updateFilter('priceMax', values[1]);
+  };
+
+  const hasActiveFilters = () => {
     return (
-      <div className={cn('bg-card rounded-lg border p-6', className)}>
-        <div className="animate-pulse space-y-4">
-          <div className="bg-muted h-6 w-32 rounded" />
-          <div className="space-y-2">
-            <div className="bg-muted h-4 w-full rounded" />
-            <div className="bg-muted h-4 w-full rounded" />
-            <div className="bg-muted h-4 w-full rounded" />
-          </div>
-        </div>
-      </div>
+      (filters.categories?.length ?? 0) > 0 ||
+      (filters.materials?.length ?? 0) > 0 ||
+      (filters.colors?.length ?? 0) > 0 ||
+      (filters.styles?.length ?? 0) > 0 ||
+      filters.priceMin !== null ||
+      filters.priceMax !== null
     );
-  }
+  };
+
+  const FilterContent = () => (
+    <div className="space-y-6">
+      {/* Categories */}
+      <Collapsible open={openSections.categories} onOpenChange={() => toggleSection('categories')}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between py-2">
+          <h3 className="text-sm font-semibold">Categorias</h3>
+          <ChevronDown
+            className={cn('h-4 w-4 transition-transform', openSections.categories && 'rotate-180')}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-3">
+          {isLoading ? (
+            <div className="text-muted-foreground text-sm">Carregando...</div>
+          ) : (
+            filterOptions?.categories?.map((category) => (
+              <div key={category.value} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`category-${category.value}`}
+                  checked={filters.categories?.includes(category.value)}
+                  onCheckedChange={(checked) =>
+                    handleCategoryChange(category.value, checked as boolean)
+                  }
+                />
+                <Label
+                  htmlFor={`category-${category.value}`}
+                  className="flex flex-1 cursor-pointer items-center justify-between text-sm font-normal"
+                >
+                  <span>{category.label}</span>
+                  <span className="text-muted-foreground text-xs">({category.count})</span>
+                </Label>
+              </div>
+            ))
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Price Range */}
+      <Collapsible open={openSections.price} onOpenChange={() => toggleSection('price')}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between py-2">
+          <h3 className="text-sm font-semibold">Faixa de Preço</h3>
+          <ChevronDown
+            className={cn('h-4 w-4 transition-transform', openSections.price && 'rotate-180')}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-4 pt-3">
+          {filterOptions?.priceRange && (
+            <>
+              <Slider
+                min={filterOptions.priceRange.min}
+                max={filterOptions.priceRange.max}
+                step={100}
+                value={[
+                  filters.priceMin ?? filterOptions.priceRange.min,
+                  filters.priceMax ?? filterOptions.priceRange.max,
+                ]}
+                onValueChange={handlePriceChange}
+                className="w-full"
+              />
+              <div className="flex items-center justify-between text-sm">
+                <span>
+                  R$ {(filters.priceMin ?? filterOptions.priceRange.min).toLocaleString('pt-BR')}
+                </span>
+                <span>
+                  R$ {(filters.priceMax ?? filterOptions.priceRange.max).toLocaleString('pt-BR')}
+                </span>
+              </div>
+            </>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Materials */}
+      <Collapsible open={openSections.materials} onOpenChange={() => toggleSection('materials')}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between py-2">
+          <h3 className="text-sm font-semibold">Materiais</h3>
+          <ChevronDown
+            className={cn('h-4 w-4 transition-transform', openSections.materials && 'rotate-180')}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-3">
+          {filterOptions?.materials?.map((material) => (
+            <div key={material.value} className="flex items-center space-x-2">
+              <Checkbox
+                id={`material-${material.value}`}
+                checked={filters.materials?.includes(material.value)}
+                onCheckedChange={(checked) =>
+                  handleMaterialChange(material.value, checked as boolean)
+                }
+              />
+              <Label
+                htmlFor={`material-${material.value}`}
+                className="flex flex-1 cursor-pointer items-center justify-between text-sm font-normal"
+              >
+                <span>{material.label}</span>
+                <span className="text-muted-foreground text-xs">({material.count})</span>
+              </Label>
+            </div>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Colors */}
+      <Collapsible open={openSections.colors} onOpenChange={() => toggleSection('colors')}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between py-2">
+          <h3 className="text-sm font-semibold">Cores</h3>
+          <ChevronDown
+            className={cn('h-4 w-4 transition-transform', openSections.colors && 'rotate-180')}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-3">
+          {filterOptions?.colors?.map((color) => (
+            <div key={color.value} className="flex items-center space-x-2">
+              <Checkbox
+                id={`color-${color.value}`}
+                checked={filters.colors?.includes(color.value)}
+                onCheckedChange={(checked) => handleColorChange(color.value, checked as boolean)}
+              />
+              <Label
+                htmlFor={`color-${color.value}`}
+                className="flex flex-1 cursor-pointer items-center justify-between text-sm font-normal"
+              >
+                <span>{color.label}</span>
+                <span className="text-muted-foreground text-xs">({color.count})</span>
+              </Label>
+            </div>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Styles */}
+      <Collapsible open={openSections.styles} onOpenChange={() => toggleSection('styles')}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between py-2">
+          <h3 className="text-sm font-semibold">Estilos</h3>
+          <ChevronDown
+            className={cn('h-4 w-4 transition-transform', openSections.styles && 'rotate-180')}
+          />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-3 pt-3">
+          {filterOptions?.styles?.map((style) => (
+            <div key={style.value} className="flex items-center space-x-2">
+              <Checkbox
+                id={`style-${style.value}`}
+                checked={filters.styles?.includes(style.value)}
+                onCheckedChange={(checked) => handleStyleChange(style.value, checked as boolean)}
+              />
+              <Label
+                htmlFor={`style-${style.value}`}
+                className="flex flex-1 cursor-pointer items-center justify-between text-sm font-normal"
+              >
+                <span>{style.label}</span>
+                <span className="text-muted-foreground text-xs">({style.count})</span>
+              </Label>
+            </div>
+          ))}
+        </CollapsibleContent>
+      </Collapsible>
+
+      {/* Clear Filters */}
+      {hasActiveFilters() && (
+        <Button variant="outline" onClick={clearFilters} className="w-full">
+          <X className="mr-2 h-4 w-4" />
+          Limpar Filtros
+        </Button>
+      )}
+    </div>
+  );
 
   return (
-    <div className={cn('bg-card rounded-lg border', className)}>
-      <div className="flex items-center justify-between border-b p-4">
-        <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5" />
-          <h2 className="text-lg font-semibold">Filtros</h2>
+    <>
+      {/* Desktop Filters */}
+      <aside className={cn('hidden lg:block', className)}>
+        <div className="bg-card sticky top-6 rounded-lg border p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Filtros</h2>
+            {hasActiveFilters() && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Limpar
+              </Button>
+            )}
+          </div>
+          <FilterContent />
         </div>
-        <Button variant="ghost" size="sm" onClick={clearFilters} className="text-sm">
-          Limpar tudo
-        </Button>
-      </div>
+      </aside>
 
-      <div className="divide-y">
-        {/* Categoria */}
-        <Collapsible open={openSections.categoria} onOpenChange={() => toggleSection('categoria')}>
-          <CollapsibleTrigger className="hover:bg-accent/50 flex w-full items-center justify-between p-4">
-            <span className="font-medium">Categoria</span>
-            <ChevronDown
-              className={cn('h-4 w-4 transition-transform', openSections.categoria && 'rotate-180')}
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-4 pb-4">
-            <div className="space-y-2">
-              {options?.categorias?.map((cat) => (
-                <div key={cat} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`cat-${cat}`}
-                    checked={filters.categoria?.includes(cat)}
-                    onCheckedChange={() => handleCheckboxChange('categoria', cat)}
-                  />
-                  <Label htmlFor={`cat-${cat}`} className="cursor-pointer text-sm font-normal">
-                    {cat}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Faixa de Preço */}
-        <Collapsible open={openSections.preco} onOpenChange={() => toggleSection('preco')}>
-          <CollapsibleTrigger className="hover:bg-accent/50 flex w-full items-center justify-between p-4">
-            <span className="font-medium">Faixa de Preço</span>
-            <ChevronDown
-              className={cn('h-4 w-4 transition-transform', openSections.preco && 'rotate-180')}
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-4 pb-4">
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="preco-min">Mínimo (R$)</Label>
-                <Input
-                  id="preco-min"
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={filters.faixa_preco?.minimo ?? ''}
-                  onChange={(e) => handlePriceChange('minimo', e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="preco-max">Máximo (R$)</Label>
-                <Input
-                  id="preco-max"
-                  type="number"
-                  min="0"
-                  placeholder="Sem limite"
-                  value={filters.faixa_preco?.maximo ?? ''}
-                  onChange={(e) => handlePriceChange('maximo', e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Material */}
-        <Collapsible open={openSections.material} onOpenChange={() => toggleSection('material')}>
-          <CollapsibleTrigger className="hover:bg-accent/50 flex w-full items-center justify-between p-4">
-            <span className="font-medium">Material</span>
-            <ChevronDown
-              className={cn('h-4 w-4 transition-transform', openSections.material && 'rotate-180')}
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-4 pb-4">
-            <div className="space-y-2">
-              {options?.materiais?.map((mat) => (
-                <div key={mat} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`mat-${mat}`}
-                    checked={filters.material?.includes(mat)}
-                    onCheckedChange={() => handleCheckboxChange('material', mat)}
-                  />
-                  <Label htmlFor={`mat-${mat}`} className="cursor-pointer text-sm font-normal">
-                    {mat}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Cor */}
-        <Collapsible open={openSections.cor} onOpenChange={() => toggleSection('cor')}>
-          <CollapsibleTrigger className="hover:bg-accent/50 flex w-full items-center justify-between p-4">
-            <span className="font-medium">Cor</span>
-            <ChevronDown
-              className={cn('h-4 w-4 transition-transform', openSections.cor && 'rotate-180')}
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-4 pb-4">
-            <div className="space-y-2">
-              {options?.cores?.map((cor) => (
-                <div key={cor} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`cor-${cor}`}
-                    checked={filters.cor?.includes(cor)}
-                    onCheckedChange={() => handleCheckboxChange('cor', cor)}
-                  />
-                  <Label htmlFor={`cor-${cor}`} className="cursor-pointer text-sm font-normal">
-                    {cor}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Estilo */}
-        <Collapsible open={openSections.estilo} onOpenChange={() => toggleSection('estilo')}>
-          <CollapsibleTrigger className="hover:bg-accent/50 flex w-full items-center justify-between p-4">
-            <span className="font-medium">Estilo</span>
-            <ChevronDown
-              className={cn('h-4 w-4 transition-transform', openSections.estilo && 'rotate-180')}
-            />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="px-4 pb-4">
-            <div className="space-y-2">
-              {options?.estilos?.map((est) => (
-                <div key={est} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`est-${est}`}
-                    checked={filters.estilo?.includes(est)}
-                    onCheckedChange={() => handleCheckboxChange('estilo', est)}
-                  />
-                  <Label htmlFor={`est-${est}`} className="cursor-pointer text-sm font-normal">
-                    {est}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </div>
-    </div>
+      {/* Mobile Filters */}
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button variant="outline" className="lg:hidden">
+            <Filter className="mr-2 h-4 w-4" />
+            Filtros
+            {hasActiveFilters() && (
+              <span className="bg-primary text-primary-foreground ml-2 rounded-full px-2 py-0.5 text-xs">
+                {(filters.categories?.length ?? 0) +
+                  (filters.materials?.length ?? 0) +
+                  (filters.colors?.length ?? 0) +
+                  (filters.styles?.length ?? 0)}
+              </span>
+            )}
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle>Filtros</SheetTitle>
+          </SheetHeader>
+          <div className="mt-6">
+            <FilterContent />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 

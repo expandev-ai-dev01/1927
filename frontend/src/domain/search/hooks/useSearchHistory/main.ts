@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { searchService } from '../../services';
+import { searchService } from '../../services/searchService';
 
 export const useSearchHistory = () => {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['search', 'history'],
-    queryFn: () => searchService.getHistory(),
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['searchHistory'],
+    queryFn: () => searchService.getHistory(10),
+    staleTime: 1 * 60 * 1000, // 1 minute
   });
 
   return {
-    history: data ?? [],
+    history: data || [],
     isLoading,
-    error,
+    refetch,
   };
 };

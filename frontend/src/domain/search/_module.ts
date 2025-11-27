@@ -1,15 +1,24 @@
-export * from './components';
-export * from './hooks';
-export * from './services';
-export * from './stores';
+export * from './components/SearchBar';
+export * from './components/SearchFilters';
+export * from './components/SearchResults';
+export * from './components/ProductCard';
+
+export * from './hooks/useSearch';
+export * from './hooks/useSearchSuggestions';
+export * from './hooks/useSearchHistory';
+export * from './hooks/useFilterOptions';
+
+export * from './services/searchService';
+export * from './stores/searchStore';
 
 export type {
   SearchFilters,
   SearchParams,
   Product,
   SearchResult,
-  FilterOptions,
   SearchSuggestion,
-  SearchHistory,
+  SearchHistoryItem,
+  FilterOption,
+  FilterOptions,
   AppliedFilter,
-} from './types';
+} from './types/search';

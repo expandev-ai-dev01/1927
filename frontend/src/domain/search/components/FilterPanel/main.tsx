@@ -1,17 +1,15 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Filter, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/core/components/button';
 import { Checkbox } from '@/core/components/checkbox';
 import { Label } from '@/core/components/label';
 import { Slider } from '@/core/components/slider';
 import { cn } from '@/core/lib/utils';
-import { useFilterOptions } from '../../hooks';
-import { useSearchStore } from '../../stores';
+import { useFilterOptions } from '../../hooks/useFilterOptions';
 import type { FilterPanelProps } from './types';
 
-function FilterPanel({ className }: FilterPanelProps) {
+function FilterPanel({ filters, onFiltersChange, className }: FilterPanelProps) {
   const { filterOptions, isLoading } = useFilterOptions();
-  const { filters, updateFilter, clearFilters } = useSearchStore();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     categories: true,
     price: true,
@@ -25,50 +23,56 @@ function FilterPanel({ className }: FilterPanelProps) {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const handleCategoryToggle = (category: string) => {
-    const current = filters.categories ?? [];
-    const updated = current.includes(category)
-      ? current.filter((c) => c !== category)
-      : [...current, category];
-    updateFilter('categories', updated.length > 0 ? updated : undefined);
+  const handleCategoryChange = (category: string, checked: boolean) => {
+    const newCategories = checked
+      ? [...(filters.categories || []), category]
+      : (filters.categories || []).filter((c) => c !== category);
+    onFiltersChange({ ...filters, categories: newCategories });
   };
 
-  const handleMaterialToggle = (material: string) => {
-    const current = filters.materials ?? [];
-    const updated = current.includes(material)
-      ? current.filter((m) => m !== material)
-      : [...current, material];
-    updateFilter('materials', updated.length > 0 ? updated : undefined);
+  const handleMaterialChange = (material: string, checked: boolean) => {
+    const newMaterials = checked
+      ? [...(filters.materials || []), material]
+      : (filters.materials || []).filter((m) => m !== material);
+    onFiltersChange({ ...filters, materials: newMaterials });
   };
 
-  const handleColorToggle = (color: string) => {
-    const current = filters.colors ?? [];
-    const updated = current.includes(color)
-      ? current.filter((c) => c !== color)
-      : [...current, color];
-    updateFilter('colors', updated.length > 0 ? updated : undefined);
+  const handleColorChange = (color: string, checked: boolean) => {
+    const newColors = checked
+      ? [...(filters.colors || []), color]
+      : (filters.colors || []).filter((c) => c !== color);
+    onFiltersChange({ ...filters, colors: newColors });
   };
 
-  const handleStyleToggle = (style: string) => {
-    const current = filters.styles ?? [];
-    const updated = current.includes(style)
-      ? current.filter((s) => s !== style)
-      : [...current, style];
-    updateFilter('styles', updated.length > 0 ? updated : undefined);
+  const handleStyleChange = (style: string, checked: boolean) => {
+    const newStyles = checked
+      ? [...(filters.styles || []), style]
+      : (filters.styles || []).filter((s) => s !== style);
+    onFiltersChange({ ...filters, styles: newStyles });
   };
 
   const handlePriceChange = (values: number[]) => {
-    updateFilter('priceMin', values[0]);
-    updateFilter('priceMax', values[1]);
+    onFiltersChange({
+      ...filters,
+      priceMin: values[0],
+      priceMax: values[1],
+    });
+  };
+
+  const handleClearFilters = () => {
+    onFiltersChange({});
   };
 
   if (isLoading) {
     return (
       <div className={cn('bg-card rounded-lg border p-6 shadow-sm', className)}>
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-muted h-12 animate-pulse rounded-md" />
-          ))}
+        <div className="animate-pulse space-y-4">
+          <div className="bg-muted h-6 w-32 rounded" />
+          <div className="space-y-2">
+            <div className="bg-muted h-4 w-full rounded" />
+            <div className="bg-muted h-4 w-full rounded" />
+            <div className="bg-muted h-4 w-full rounded" />
+          </div>
         </div>
       </div>
     );
@@ -76,140 +80,183 @@ function FilterPanel({ className }: FilterPanelProps) {
 
   if (!filterOptions) return null;
 
-  const FilterSection = ({
-    title,
-    sectionKey,
-    children,
-  }: {
-    title: string;
-    sectionKey: string;
-    children: React.ReactNode;
-  }) => (
-    <div className="border-b pb-4 last:border-b-0">
-      <button
-        onClick={() => toggleSection(sectionKey)}
-        className="hover:text-primary flex w-full items-center justify-between py-2 text-left font-medium transition-colors"
-      >
-        <span>{title}</span>
-        {expandedSections[sectionKey] ? (
-          <ChevronUp className="h-4 w-4" />
-        ) : (
-          <ChevronDown className="h-4 w-4" />
-        )}
-      </button>
-      {expandedSections[sectionKey] && <div className="mt-3 space-y-3">{children}</div>}
-    </div>
-  );
-
   return (
     <div className={cn('bg-card rounded-lg border shadow-sm', className)}>
       <div className="flex items-center justify-between border-b p-4">
-        <h2 className="text-lg font-semibold">Filtros</h2>
-        <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs">
-          <X className="mr-1 h-3 w-3" />
+        <div className="flex items-center gap-2">
+          <Filter className="h-5 w-5" />
+          <h2 className="text-lg font-semibold">Filtros</h2>
+        </div>
+        <Button variant="ghost" size="sm" onClick={handleClearFilters}>
           Limpar
         </Button>
       </div>
 
-      <div className="space-y-4 p-4">
-        <FilterSection title="Categorias" sectionKey="categories">
-          {filterOptions.categories?.map((cat) => (
-            <div key={cat.name} className="flex items-center space-x-2">
-              <Checkbox
-                id={`cat-${cat.name}`}
-                checked={filters.categories?.includes(cat.name) ?? false}
-                onCheckedChange={() => handleCategoryToggle(cat.name)}
-              />
-              <Label
-                htmlFor={`cat-${cat.name}`}
-                className="flex flex-1 cursor-pointer items-center justify-between text-sm font-normal"
-              >
-                <span>{cat.name}</span>
-                <span className="text-muted-foreground text-xs">({cat.count})</span>
-              </Label>
+      <div className="divide-y">
+        {/* Categories */}
+        <div className="p-4">
+          <button
+            onClick={() => toggleSection('categories')}
+            className="flex w-full items-center justify-between text-sm font-medium"
+          >
+            <span>Categorias</span>
+            {expandedSections.categories ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+          {expandedSections.categories && (
+            <div className="mt-3 space-y-2">
+              {filterOptions.categories.map((cat) => (
+                <div key={cat.name} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`cat-${cat.name}`}
+                    checked={filters.categories?.includes(cat.name)}
+                    onCheckedChange={(checked) =>
+                      handleCategoryChange(cat.name, checked as boolean)
+                    }
+                  />
+                  <Label htmlFor={`cat-${cat.name}`} className="flex-1 cursor-pointer text-sm">
+                    {cat.name}
+                    <span className="text-muted-foreground ml-1 text-xs">({cat.count})</span>
+                  </Label>
+                </div>
+              ))}
             </div>
-          ))}
-        </FilterSection>
+          )}
+        </div>
 
-        <FilterSection title="Faixa de Preço" sectionKey="price">
-          <div className="space-y-4 px-2">
-            <Slider
-              min={filterOptions.priceRange.min}
-              max={filterOptions.priceRange.max}
-              step={10}
-              value={[
-                filters.priceMin ?? filterOptions.priceRange.min,
-                filters.priceMax ?? filterOptions.priceRange.max,
-              ]}
-              onValueChange={handlePriceChange}
-            />
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">
-                R$ {filters.priceMin ?? filterOptions.priceRange.min}
-              </span>
-              <span className="text-muted-foreground">
-                R$ {filters.priceMax ?? filterOptions.priceRange.max}
-              </span>
-            </div>
-          </div>
-        </FilterSection>
-
-        <FilterSection title="Materiais" sectionKey="materials">
-          {filterOptions.materials?.map((mat) => (
-            <div key={mat.name} className="flex items-center space-x-2">
-              <Checkbox
-                id={`mat-${mat.name}`}
-                checked={filters.materials?.includes(mat.name) ?? false}
-                onCheckedChange={() => handleMaterialToggle(mat.name)}
+        {/* Price Range */}
+        <div className="p-4">
+          <button
+            onClick={() => toggleSection('price')}
+            className="flex w-full items-center justify-between text-sm font-medium"
+          >
+            <span>Faixa de Preço</span>
+            {expandedSections.price ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+          {expandedSections.price && (
+            <div className="mt-4 space-y-4">
+              <Slider
+                min={filterOptions.priceRange.min}
+                max={filterOptions.priceRange.max}
+                step={10}
+                value={[
+                  filters.priceMin ?? filterOptions.priceRange.min,
+                  filters.priceMax ?? filterOptions.priceRange.max,
+                ]}
+                onValueChange={handlePriceChange}
               />
-              <Label
-                htmlFor={`mat-${mat.name}`}
-                className="flex flex-1 cursor-pointer items-center justify-between text-sm font-normal"
-              >
-                <span>{mat.name}</span>
-                <span className="text-muted-foreground text-xs">({mat.count})</span>
-              </Label>
+              <div className="text-muted-foreground flex items-center justify-between text-sm">
+                <span>R$ {(filters.priceMin ?? filterOptions.priceRange.min).toFixed(2)}</span>
+                <span>R$ {(filters.priceMax ?? filterOptions.priceRange.max).toFixed(2)}</span>
+              </div>
             </div>
-          ))}
-        </FilterSection>
+          )}
+        </div>
 
-        <FilterSection title="Cores" sectionKey="colors">
-          {filterOptions.colors?.map((col) => (
-            <div key={col.name} className="flex items-center space-x-2">
-              <Checkbox
-                id={`col-${col.name}`}
-                checked={filters.colors?.includes(col.name) ?? false}
-                onCheckedChange={() => handleColorToggle(col.name)}
-              />
-              <Label
-                htmlFor={`col-${col.name}`}
-                className="flex flex-1 cursor-pointer items-center justify-between text-sm font-normal"
-              >
-                <span>{col.name}</span>
-                <span className="text-muted-foreground text-xs">({col.count})</span>
-              </Label>
+        {/* Materials */}
+        <div className="p-4">
+          <button
+            onClick={() => toggleSection('materials')}
+            className="flex w-full items-center justify-between text-sm font-medium"
+          >
+            <span>Materiais</span>
+            {expandedSections.materials ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+          {expandedSections.materials && (
+            <div className="mt-3 space-y-2">
+              {filterOptions.materials.map((mat) => (
+                <div key={mat.name} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`mat-${mat.name}`}
+                    checked={filters.materials?.includes(mat.name)}
+                    onCheckedChange={(checked) =>
+                      handleMaterialChange(mat.name, checked as boolean)
+                    }
+                  />
+                  <Label htmlFor={`mat-${mat.name}`} className="flex-1 cursor-pointer text-sm">
+                    {mat.name}
+                    <span className="text-muted-foreground ml-1 text-xs">({mat.count})</span>
+                  </Label>
+                </div>
+              ))}
             </div>
-          ))}
-        </FilterSection>
+          )}
+        </div>
 
-        <FilterSection title="Estilos" sectionKey="styles">
-          {filterOptions.styles?.map((sty) => (
-            <div key={sty.name} className="flex items-center space-x-2">
-              <Checkbox
-                id={`sty-${sty.name}`}
-                checked={filters.styles?.includes(sty.name) ?? false}
-                onCheckedChange={() => handleStyleToggle(sty.name)}
-              />
-              <Label
-                htmlFor={`sty-${sty.name}`}
-                className="flex flex-1 cursor-pointer items-center justify-between text-sm font-normal"
-              >
-                <span>{sty.name}</span>
-                <span className="text-muted-foreground text-xs">({sty.count})</span>
-              </Label>
+        {/* Colors */}
+        <div className="p-4">
+          <button
+            onClick={() => toggleSection('colors')}
+            className="flex w-full items-center justify-between text-sm font-medium"
+          >
+            <span>Cores</span>
+            {expandedSections.colors ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+          {expandedSections.colors && (
+            <div className="mt-3 space-y-2">
+              {filterOptions.colors.map((color) => (
+                <div key={color.name} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`color-${color.name}`}
+                    checked={filters.colors?.includes(color.name)}
+                    onCheckedChange={(checked) => handleColorChange(color.name, checked as boolean)}
+                  />
+                  <Label htmlFor={`color-${color.name}`} className="flex-1 cursor-pointer text-sm">
+                    {color.name}
+                    <span className="text-muted-foreground ml-1 text-xs">({color.count})</span>
+                  </Label>
+                </div>
+              ))}
             </div>
-          ))}
-        </FilterSection>
+          )}
+        </div>
+
+        {/* Styles */}
+        <div className="p-4">
+          <button
+            onClick={() => toggleSection('styles')}
+            className="flex w-full items-center justify-between text-sm font-medium"
+          >
+            <span>Estilos</span>
+            {expandedSections.styles ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+          {expandedSections.styles && (
+            <div className="mt-3 space-y-2">
+              {filterOptions.styles.map((style) => (
+                <div key={style.name} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`style-${style.name}`}
+                    checked={filters.styles?.includes(style.name)}
+                    onCheckedChange={(checked) => handleStyleChange(style.name, checked as boolean)}
+                  />
+                  <Label htmlFor={`style-${style.name}`} className="flex-1 cursor-pointer text-sm">
+                    {style.name}
+                    <span className="text-muted-foreground ml-1 text-xs">({style.count})</span>
+                  </Label>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

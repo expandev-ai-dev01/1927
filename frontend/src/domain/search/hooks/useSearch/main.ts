@@ -1,34 +1,58 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { searchService } from '../../services';
-import type { SearchParams } from '../../types';
+import { useSearchStore } from '../../stores/searchStore';
+import { searchService } from '../../services/searchService';
+import type { SearchParams } from '../../types/search';
 
-export const useSearch = (params: SearchParams) => {
+export const useSearch = () => {
   const queryClient = useQueryClient();
-  const queryKey = ['search', 'products', params];
+  const { searchTerm, filters, sortBy, currentPage, pageSize, setIsLoading, addToHistory } =
+    useSearchStore();
+
+  const searchParams: SearchParams = {
+    searchTerm: searchTerm || undefined,
+    filters,
+    sortBy,
+    pageNumber: currentPage,
+    pageSize,
+  };
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey,
-    queryFn: () => searchService.searchProducts(params),
-    enabled: !!params.searchTerm || !!params.productCode || !!params.filters,
+    queryKey: ['search', searchParams],
+    queryFn: async () => {
+      setIsLoading(true);
+      try {
+        const result = await searchService.searchProducts(searchParams);
+
+        // Add to history if search term exists
+        if (searchTerm) {
+          await searchService.createHistory(
+            searchTerm,
+            JSON.stringify(filters),
+            result.totalResults
+          );
+        }
+
+        return result;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    enabled: true,
   });
 
-  const { mutateAsync: recordHistory } = useMutation({
-    mutationFn: (historyParams: { searchTerm: string; filters?: string; resultCount: number }) =>
-      searchService.createHistory(historyParams),
+  const { mutateAsync: createHistoryEntry } = useMutation({
+    mutationFn: (params: { searchTerm: string; filters?: string; resultCount: number }) =>
+      searchService.createHistory(params.searchTerm, params.filters, params.resultCount),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['search', 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['searchHistory'] });
     },
   });
 
   return {
-    products: data?.products ?? [],
-    totalCount: data?.totalCount ?? 0,
-    page: data?.page ?? 1,
-    pageSize: data?.pageSize ?? 24,
-    totalPages: data?.totalPages ?? 0,
+    searchResult: data,
     isLoading,
     error,
     refetch,
-    recordHistory,
+    createHistoryEntry,
   };
 };
