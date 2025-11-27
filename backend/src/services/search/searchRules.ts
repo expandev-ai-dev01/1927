@@ -1,64 +1,90 @@
 import { dbRequest, ExpectedReturn, IRecordSet } from '@/utils/database';
 import {
-  SearchProductsRequest,
-  SearchProductsResponse,
-  SearchProduct,
-  SearchMetadata,
-  AutocompleteSuggestion,
+  SearchProductParams,
+  SearchResult,
+  SearchHistoryCreateParams,
   FilterOptions,
-  FilterOption,
-  SearchAlternatives,
-  RelatedProduct,
+  SearchSuggestionsParams,
+  SearchSuggestion,
+  SearchHistoryItem,
+  FilterOptionsParams,
 } from './searchTypes';
 
 /**
  * @summary
  * Performs comprehensive product search with filters and pagination
  *
- * @function searchProducts
+ * @function searchProductList
  * @module search
  *
- * @param {SearchProductsRequest} params - Search parameters
+ * @param {SearchProductParams} params - Search parameters
+ * @param {number} params.idAccount - Account identifier
+ * @param {string} [params.searchTerm] - Search term
+ * @param {object} [params.filters] - Filter object
+ * @param {string} [params.sortBy] - Sort criteria
+ * @param {number} [params.pageNumber] - Page number
+ * @param {number} [params.pageSize] - Items per page
  *
- * @returns {Promise<SearchProductsResponse>} Search results with metadata
+ * @returns {Promise<{products: SearchResult[], totalResults: number, pageNumber: number, pageSize: number, totalPages: number}>} Search results with pagination info
  *
  * @throws {ValidationError} When parameters fail validation
  * @throws {DatabaseError} When database operation fails
  */
-export async function searchProducts(
-  params: SearchProductsRequest
-): Promise<SearchProductsResponse> {
-  const result = (await dbRequest(
-    '[functional].[spSearchProducts]',
-    {
-      searchTerm: params.searchTerm || null,
-      productCode: params.productCode || null,
-      categories: params.categories ? JSON.stringify(params.categories) : null,
-      priceMin: params.priceMin || null,
-      priceMax: params.priceMax || null,
-      materials: params.materials ? JSON.stringify(params.materials) : null,
-      colors: params.colors ? JSON.stringify(params.colors) : null,
-      styles: params.styles ? JSON.stringify(params.styles) : null,
-      heightMin: params.heightMin || null,
-      heightMax: params.heightMax || null,
-      widthMin: params.widthMin || null,
-      widthMax: params.widthMax || null,
-      depthMin: params.depthMin || null,
-      depthMax: params.depthMax || null,
-      sortBy: params.sortBy || 'relevancia',
-      page: params.page || 1,
-      pageSize: params.pageSize || 24,
-      sessionId: params.sessionId || null,
-    },
-    ExpectedReturn.Multi
-  )) as IRecordSet<any>[];
+export async function searchProductList(params: SearchProductParams): Promise<{
+  products: SearchResult[];
+  totalResults: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+}> {
+  const filters = params.filters || {};
+  const dimensions = filters.dimensions || {};
 
-  const products: SearchProduct[] = result[0];
-  const metadata: SearchMetadata = result[1][0];
+  const dbParams = {
+    idAccount: params.idAccount,
+    searchTerm: params.searchTerm || null,
+    productCode: null,
+    categories: filters.categories ? JSON.stringify(filters.categories) : null,
+    priceMin: filters.priceMin ?? null,
+    priceMax: filters.priceMax ?? null,
+    materials: filters.materials ? JSON.stringify(filters.materials) : null,
+    colors: filters.colors ? JSON.stringify(filters.colors) : null,
+    styles: filters.styles ? JSON.stringify(filters.styles) : null,
+    heightMin: dimensions.heightMin ?? null,
+    heightMax: dimensions.heightMax ?? null,
+    widthMin: dimensions.widthMin ?? null,
+    widthMax: dimensions.widthMax ?? null,
+    depthMin: dimensions.depthMin ?? null,
+    depthMax: dimensions.depthMax ?? null,
+    sortBy: params.sortBy || 'relevancia',
+    page: params.pageNumber || 1,
+    pageSize: params.pageSize || 24,
+  };
+
+  const result = await dbRequest(
+    '[functional].[spSearchProductList]',
+    dbParams,
+    ExpectedReturn.Multi
+  );
+
+  const products = result as SearchResult[];
+
+  if (products.length === 0) {
+    return {
+      products: [],
+      totalResults: 0,
+      pageNumber: params.pageNumber || 1,
+      pageSize: params.pageSize || 24,
+      totalPages: 0,
+    };
+  }
 
   return {
     products,
-    metadata,
+    totalResults: products[0].totalResults,
+    pageNumber: products[0].currentPage,
+    pageSize: params.pageSize || 24,
+    totalPages: products[0].totalPages,
   };
 }
 
@@ -66,141 +92,152 @@ export async function searchProducts(
  * @summary
  * Provides autocomplete suggestions for search input
  *
- * @function searchAutocomplete
+ * @function searchSuggestionsGet
  * @module search
  *
- * @param {string} searchTerm - Partial search term
- * @param {number} maxSuggestions - Maximum suggestions to return
+ * @param {number} idAccount - Account identifier
+ * @param {string} partialTerm - Partial search term
+ * @param {number} [maxSuggestions] - Maximum suggestions
  *
- * @returns {Promise<AutocompleteSuggestion[]>} Array of suggestions
+ * @returns {Promise<SearchSuggestion[]>} Autocomplete suggestions
  *
- * @throws {ValidationError} When search term is too short
+ * @throws {ValidationError} When parameters fail validation
  * @throws {DatabaseError} When database operation fails
  */
-export async function searchAutocomplete(
-  searchTerm: string,
-  maxSuggestions: number = 10
-): Promise<AutocompleteSuggestion[]> {
+export async function searchSuggestionsGet(
+  idAccount: number,
+  partialTerm: string,
+  maxSuggestions?: number
+): Promise<SearchSuggestion[]> {
   const result = await dbRequest(
-    '[functional].[spSearchAutocomplete]',
+    '[functional].[spSearchSuggestionsGet]',
     {
-      searchTerm,
-      maxSuggestions,
+      idAccount,
+      partialTerm,
+      maxSuggestions: maxSuggestions || 10,
     },
-    ExpectedReturn.Multiple
+    ExpectedReturn.Multi
   );
 
-  return result as AutocompleteSuggestion[];
+  return result as SearchSuggestion[];
 }
 
 /**
  * @summary
- * Retrieves available filter options from catalog
+ * Records a search operation in history
  *
- * @function getFilterOptions
+ * @function searchHistoryCreate
  * @module search
  *
- * @param {string[]} appliedCategories - Already applied category filters
- * @param {string[]} appliedMaterials - Already applied material filters
- * @param {string[]} appliedColors - Already applied color filters
- * @param {string[]} appliedStyles - Already applied style filters
+ * @param {SearchHistoryCreateParams} params - Search history parameters
+ * @param {number} params.idAccount - Account identifier
+ * @param {string} params.searchTerm - Search term used
+ * @param {string} [params.filters] - Applied filters (JSON)
+ * @param {number} params.resultCount - Number of results found
+ *
+ * @returns {Promise<{idSearchHistory: number}>} Created history record ID
+ *
+ * @throws {ValidationError} When parameters fail validation
+ * @throws {DatabaseError} When database operation fails
+ */
+export async function searchHistoryCreate(
+  params: SearchHistoryCreateParams
+): Promise<{ idSearchHistory: number }> {
+  const result = await dbRequest(
+    '[functional].[spSearchHistoryCreate]',
+    {
+      idAccount: params.idAccount,
+      searchTerm: params.searchTerm,
+      filters: params.filters || null,
+      resultCount: params.resultCount,
+    },
+    ExpectedReturn.Single
+  );
+
+  return result;
+}
+
+/**
+ * @summary
+ * Retrieves search history for an account
+ *
+ * @function searchHistoryList
+ * @module search
+ *
+ * @param {number} idAccount - Account identifier
+ * @param {number} [maxResults] - Maximum history items
+ *
+ * @returns {Promise<SearchHistoryItem[]>} Search history items
+ *
+ * @throws {ValidationError} When parameters fail validation
+ * @throws {DatabaseError} When database operation fails
+ */
+export async function searchHistoryList(
+  idAccount: number,
+  maxResults?: number
+): Promise<SearchHistoryItem[]> {
+  const result = await dbRequest(
+    '[functional].[spSearchHistoryList]',
+    {
+      idAccount,
+      maxResults: maxResults || 10,
+    },
+    ExpectedReturn.Multi
+  );
+
+  return result as SearchHistoryItem[];
+}
+
+/**
+ * @summary
+ * Retrieves available filter options from catalog with progressive refinement
+ *
+ * @function searchFilterOptionsGet
+ * @module search
+ *
+ * @param {number} idAccount - Account identifier
+ * @param {FilterOptionsParams} [currentFilters] - Currently applied filters
  *
  * @returns {Promise<FilterOptions>} Available filter options
  *
+ * @throws {ValidationError} When parameters fail validation
  * @throws {DatabaseError} When database operation fails
  */
-export async function getFilterOptions(
-  appliedCategories?: string[],
-  appliedMaterials?: string[],
-  appliedColors?: string[],
-  appliedStyles?: string[]
+export async function searchFilterOptionsGet(
+  idAccount: number,
+  currentFilters?: FilterOptionsParams
 ): Promise<FilterOptions> {
-  const result = (await dbRequest(
-    '[functional].[spSearchGetFilterOptions]',
-    {
-      appliedCategories: appliedCategories ? JSON.stringify(appliedCategories) : null,
-      appliedMaterials: appliedMaterials ? JSON.stringify(appliedMaterials) : null,
-      appliedColors: appliedColors ? JSON.stringify(appliedColors) : null,
-      appliedStyles: appliedStyles ? JSON.stringify(appliedStyles) : null,
-    },
+  const filters = currentFilters || {};
+
+  const dbParams = {
+    idAccount,
+    categories: filters.categories ? JSON.stringify(filters.categories) : null,
+    priceMin: filters.priceMin ?? null,
+    priceMax: filters.priceMax ?? null,
+    materials: filters.materials ? JSON.stringify(filters.materials) : null,
+    colors: filters.colors ? JSON.stringify(filters.colors) : null,
+    styles: filters.styles ? JSON.stringify(filters.styles) : null,
+  };
+
+  const results = (await dbRequest(
+    '[functional].[spSearchFilterOptionsGet]',
+    dbParams,
     ExpectedReturn.Multi
   )) as IRecordSet<any>[];
 
-  const categories: FilterOption[] = result[0].map((row: any) => ({
-    value: row.category,
-    productCount: row.productCount,
-  }));
-
-  const materials: FilterOption[] = result[1].map((row: any) => ({
-    value: row.material,
-    productCount: row.productCount,
-  }));
-
-  const colors: FilterOption[] = result[2].map((row: any) => ({
-    value: row.color,
-    productCount: row.productCount,
-  }));
-
-  const styles: FilterOption[] = result[3].map((row: any) => ({
-    value: row.style,
-    productCount: row.productCount,
-  }));
-
-  const priceRange = result[4][0];
-  const dimensionRanges = result[5][0];
+  const categories = results[0].map((row: any) => row.category);
+  const materials = results[1].map((row: any) => row.material);
+  const colors = results[2].map((row: any) => row.color);
+  const styles = results[3].map((row: any) => row.style);
+  const priceRange = results[4][0];
+  const dimensionRanges = results[5][0];
 
   return {
     categories,
     materials,
     colors,
     styles,
-    minPrice: priceRange.minPrice,
-    maxPrice: priceRange.maxPrice,
-    minHeight: dimensionRanges.minHeight,
-    maxHeight: dimensionRanges.maxHeight,
-    minWidth: dimensionRanges.minWidth,
-    maxWidth: dimensionRanges.maxWidth,
-    minDepth: dimensionRanges.minDepth,
-    maxDepth: dimensionRanges.maxDepth,
-  };
-}
-
-/**
- * @summary
- * Provides alternative suggestions and related products for no-results scenarios
- *
- * @function getSearchAlternatives
- * @module search
- *
- * @param {string} searchTerm - Original search term
- * @param {number} maxSuggestions - Maximum suggestions to return
- * @param {number} maxProducts - Maximum related products to return
- *
- * @returns {Promise<SearchAlternatives>} Alternative suggestions and products
- *
- * @throws {ValidationError} When search term is invalid
- * @throws {DatabaseError} When database operation fails
- */
-export async function getSearchAlternatives(
-  searchTerm: string,
-  maxSuggestions: number = 5,
-  maxProducts: number = 8
-): Promise<SearchAlternatives> {
-  const result = (await dbRequest(
-    '[functional].[spSearchGetAlternatives]',
-    {
-      searchTerm,
-      maxSuggestions,
-      maxProducts,
-    },
-    ExpectedReturn.Multi
-  )) as IRecordSet<any>[];
-
-  const suggestions: string[] = result[0].map((row: any) => row.suggestion);
-  const relatedProducts: RelatedProduct[] = result[1];
-
-  return {
-    suggestions,
-    relatedProducts,
+    priceRange,
+    dimensionRanges,
   };
 }

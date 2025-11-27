@@ -1,50 +1,68 @@
 /**
- * @interface SearchProductsRequest
- * @description Request parameters for product search
+ * @interface SearchProductParams
+ * @description Parameters for product search operation
  *
- * @property {string} searchTerm - Search term entered by user
- * @property {string} productCode - Specific product code for exact match
- * @property {string[]} categories - Array of category names to filter
- * @property {number} priceMin - Minimum price filter
- * @property {number} priceMax - Maximum price filter
- * @property {string[]} materials - Array of material names to filter
- * @property {string[]} colors - Array of color names to filter
- * @property {string[]} styles - Array of style names to filter
- * @property {number} heightMin - Minimum height in cm
- * @property {number} heightMax - Maximum height in cm
- * @property {number} widthMin - Minimum width in cm
- * @property {number} widthMax - Maximum width in cm
- * @property {number} depthMin - Minimum depth in cm
- * @property {number} depthMax - Maximum depth in cm
- * @property {string} sortBy - Sort criteria
- * @property {number} page - Page number
- * @property {number} pageSize - Items per page
- * @property {string} sessionId - Session identifier for history tracking
+ * @property {number} idAccount - Account identifier
+ * @property {string} [searchTerm] - Search term (optional)
+ * @property {SearchFilters} [filters] - Filter object (optional)
+ * @property {string} [sortBy] - Sort criteria (optional)
+ * @property {number} [pageNumber] - Page number (optional)
+ * @property {number} [pageSize] - Items per page (optional)
  */
-export interface SearchProductsRequest {
+export interface SearchProductParams {
+  idAccount: number;
   searchTerm?: string;
-  productCode?: string;
+  filters?: SearchFilters;
+  sortBy?: string;
+  pageNumber?: number;
+  pageSize?: 12 | 24 | 36 | 48;
+}
+
+/**
+ * @interface SearchFilters
+ * @description Filter parameters for product search
+ *
+ * @property {string[]} [categories] - Category filters (optional)
+ * @property {number} [priceMin] - Minimum price filter (optional)
+ * @property {number} [priceMax] - Maximum price filter (optional)
+ * @property {string[]} [materials] - Material filters (optional)
+ * @property {string[]} [colors] - Color filters (optional)
+ * @property {string[]} [styles] - Style filters (optional)
+ * @property {DimensionFilters} [dimensions] - Dimension filters (optional)
+ */
+export interface SearchFilters {
   categories?: string[];
   priceMin?: number;
   priceMax?: number;
   materials?: string[];
   colors?: string[];
   styles?: string[];
+  dimensions?: DimensionFilters;
+}
+
+/**
+ * @interface DimensionFilters
+ * @description Dimension filter parameters
+ *
+ * @property {number} [heightMin] - Minimum height in cm (optional)
+ * @property {number} [heightMax] - Maximum height in cm (optional)
+ * @property {number} [widthMin] - Minimum width in cm (optional)
+ * @property {number} [widthMax] - Maximum width in cm (optional)
+ * @property {number} [depthMin] - Minimum depth in cm (optional)
+ * @property {number} [depthMax] - Maximum depth in cm (optional)
+ */
+export interface DimensionFilters {
   heightMin?: number;
   heightMax?: number;
   widthMin?: number;
   widthMax?: number;
   depthMin?: number;
   depthMax?: number;
-  sortBy?: string;
-  page?: number;
-  pageSize?: number;
-  sessionId?: string;
 }
 
 /**
- * @interface SearchProduct
- * @description Product information in search results
+ * @interface SearchResult
+ * @description Product search result
  *
  * @property {number} idProduct - Product identifier
  * @property {string} productCode - Product code
@@ -58,10 +76,12 @@ export interface SearchProductsRequest {
  * @property {number} height - Product height in cm
  * @property {number} width - Product width in cm
  * @property {number} depth - Product depth in cm
- * @property {string} imageUrl - Product image URL
  * @property {Date} dateCreated - Product creation date
+ * @property {number} totalResults - Total number of results
+ * @property {number} totalPages - Total number of pages
+ * @property {number} currentPage - Current page number
  */
-export interface SearchProduct {
+export interface SearchResult {
   idProduct: number;
   productCode: string;
   name: string;
@@ -74,124 +94,142 @@ export interface SearchProduct {
   height: number | null;
   width: number | null;
   depth: number | null;
-  imageUrl: string | null;
+  dateCreated: Date;
+  totalResults: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+/**
+ * @interface SearchSuggestionsParams
+ * @description Parameters for search suggestions
+ *
+ * @property {number} idAccount - Account identifier
+ * @property {string} partialTerm - Partial search term
+ * @property {number} [maxSuggestions] - Maximum suggestions (optional)
+ */
+export interface SearchSuggestionsParams {
+  idAccount: number;
+  partialTerm: string;
+  maxSuggestions?: number;
+}
+
+/**
+ * @interface SearchSuggestion
+ * @description Search suggestion result
+ *
+ * @property {string} suggestion - Suggested term
+ * @property {string} type - Suggestion type (product, category, synonym)
+ * @property {number} priority - Priority score
+ */
+export interface SearchSuggestion {
+  suggestion: string;
+  type: string;
+  priority: number;
+}
+
+/**
+ * @interface SearchHistoryCreateParams
+ * @description Parameters for creating search history
+ *
+ * @property {number} idAccount - Account identifier
+ * @property {string} searchTerm - Search term used
+ * @property {string} [filters] - Applied filters as JSON string (optional)
+ * @property {number} resultCount - Number of results found
+ */
+export interface SearchHistoryCreateParams {
+  idAccount: number;
+  searchTerm: string;
+  filters?: string;
+  resultCount: number;
+}
+
+/**
+ * @interface SearchHistoryItem
+ * @description Search history item
+ *
+ * @property {number} idSearchHistory - Search history identifier
+ * @property {string} searchTerm - Search term used
+ * @property {string} filters - Applied filters (JSON)
+ * @property {number} resultCount - Number of results found
+ * @property {Date} dateCreated - Search execution date
+ */
+export interface SearchHistoryItem {
+  idSearchHistory: number;
+  searchTerm: string;
+  filters: string | null;
+  resultCount: number;
   dateCreated: Date;
 }
 
 /**
- * @interface SearchMetadata
- * @description Metadata about search results
+ * @interface FilterOptionsParams
+ * @description Parameters for retrieving filter options with progressive refinement
  *
- * @property {number} totalResults - Total number of results found
- * @property {number} page - Current page number
- * @property {number} pageSize - Items per page
- * @property {number} totalPages - Total number of pages
+ * @property {string[]} [categories] - Currently selected categories (optional)
+ * @property {number} [priceMin] - Currently selected minimum price (optional)
+ * @property {number} [priceMax] - Currently selected maximum price (optional)
+ * @property {string[]} [materials] - Currently selected materials (optional)
+ * @property {string[]} [colors] - Currently selected colors (optional)
+ * @property {string[]} [styles] - Currently selected styles (optional)
  */
-export interface SearchMetadata {
-  totalResults: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-/**
- * @interface SearchProductsResponse
- * @description Complete search response with results and metadata
- *
- * @property {SearchProduct[]} products - Array of product results
- * @property {SearchMetadata} metadata - Search metadata
- */
-export interface SearchProductsResponse {
-  products: SearchProduct[];
-  metadata: SearchMetadata;
-}
-
-/**
- * @interface AutocompleteSuggestion
- * @description Autocomplete suggestion item
- *
- * @property {string} suggestion - Suggested search term
- * @property {string} type - Type of suggestion (product, category, popular)
- * @property {number} relevance - Relevance score
- */
-export interface AutocompleteSuggestion {
-  suggestion: string;
-  type: string;
-  relevance: number;
-}
-
-/**
- * @interface FilterOption
- * @description Filter option with product count
- *
- * @property {string} value - Filter value
- * @property {number} productCount - Number of products with this value
- */
-export interface FilterOption {
-  value: string;
-  productCount: number;
+export interface FilterOptionsParams {
+  categories?: string[];
+  priceMin?: number;
+  priceMax?: number;
+  materials?: string[];
+  colors?: string[];
+  styles?: string[];
 }
 
 /**
  * @interface FilterOptions
- * @description Available filter options
+ * @description Available filter options from catalog
  *
- * @property {FilterOption[]} categories - Available categories
- * @property {FilterOption[]} materials - Available materials
- * @property {FilterOption[]} colors - Available colors
- * @property {FilterOption[]} styles - Available styles
- * @property {number} minPrice - Minimum price in catalog
- * @property {number} maxPrice - Maximum price in catalog
- * @property {number} minHeight - Minimum height in catalog
- * @property {number} maxHeight - Maximum height in catalog
- * @property {number} minWidth - Minimum width in catalog
- * @property {number} maxWidth - Maximum width in catalog
- * @property {number} minDepth - Minimum depth in catalog
- * @property {number} maxDepth - Maximum depth in catalog
+ * @property {string[]} categories - Available categories
+ * @property {string[]} materials - Available materials
+ * @property {string[]} colors - Available colors
+ * @property {string[]} styles - Available styles
+ * @property {PriceRange} priceRange - Price range
+ * @property {DimensionRanges} dimensionRanges - Dimension ranges
  */
 export interface FilterOptions {
-  categories: FilterOption[];
-  materials: FilterOption[];
-  colors: FilterOption[];
-  styles: FilterOption[];
+  categories: string[];
+  materials: string[];
+  colors: string[];
+  styles: string[];
+  priceRange: PriceRange;
+  dimensionRanges: DimensionRanges;
+}
+
+/**
+ * @interface PriceRange
+ * @description Price range information
+ *
+ * @property {number} minPrice - Minimum price
+ * @property {number} maxPrice - Maximum price
+ */
+export interface PriceRange {
   minPrice: number;
   maxPrice: number;
+}
+
+/**
+ * @interface DimensionRanges
+ * @description Dimension ranges information
+ *
+ * @property {number} minHeight - Minimum height
+ * @property {number} maxHeight - Maximum height
+ * @property {number} minWidth - Minimum width
+ * @property {number} maxWidth - Maximum width
+ * @property {number} minDepth - Minimum depth
+ * @property {number} maxDepth - Maximum depth
+ */
+export interface DimensionRanges {
   minHeight: number | null;
   maxHeight: number | null;
   minWidth: number | null;
   maxWidth: number | null;
   minDepth: number | null;
   maxDepth: number | null;
-}
-
-/**
- * @interface RelatedProduct
- * @description Related product for no-results scenarios
- *
- * @property {number} idProduct - Product identifier
- * @property {string} productCode - Product code
- * @property {string} name - Product name
- * @property {string} category - Product category
- * @property {number} price - Product price
- * @property {string} imageUrl - Product image URL
- */
-export interface RelatedProduct {
-  idProduct: number;
-  productCode: string;
-  name: string;
-  category: string | null;
-  price: number;
-  imageUrl: string | null;
-}
-
-/**
- * @interface SearchAlternatives
- * @description Alternative suggestions and related products
- *
- * @property {string[]} suggestions - Alternative search terms
- * @property {RelatedProduct[]} relatedProducts - Related products
- */
-export interface SearchAlternatives {
-  suggestions: string[];
-  relatedProducts: RelatedProduct[];
 }
