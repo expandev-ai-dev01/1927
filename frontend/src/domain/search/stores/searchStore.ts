@@ -1,133 +1,95 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type {
-  SearchFilters,
-  SearchHistoryItem,
-  SearchFavorite,
-} from '../types';
+import type { SearchFilters } from '../types/search';
+
+interface FavoriteSearch {
+  id: string;
+  name: string;
+  searchTerm?: string;
+  filters?: SearchFilters;
+  createdAt: string;
+}
 
 interface SearchStore {
-  // Current search state
   searchTerm: string;
   filters: SearchFilters;
-  viewMode: 'grade' | 'lista';
   sortBy: 'relevancia' | 'nome_asc' | 'nome_desc' | 'preco_asc' | 'preco_desc' | 'data_cadastro_desc';
-  itemsPerPage: 12 | 24 | 36 | 48;
-  currentPage: number;
+  viewMode: 'grade' | 'lista';
+  pageSize: 12 | 24 | 36 | 48;
+  favoriteSearches: FavoriteSearch[];
 
-  // History and favorites
-  searchHistory: SearchHistoryItem[];
-  favorites: SearchFavorite[];
-
-  // Actions
   setSearchTerm: (term: string) => void;
   setFilters: (filters: SearchFilters) => void;
   updateFilter: (key: keyof SearchFilters, value: any) => void;
   clearFilters: () => void;
+  setSortBy: (sortBy: SearchStore['sortBy']) => void;
   setViewMode: (mode: 'grade' | 'lista') => void;
-  setSortBy: (sort: SearchStore['sortBy']) => void;
-  setItemsPerPage: (items: SearchStore['itemsPerPage']) => void;
-  setCurrentPage: (page: number) => void;
-
-  // History management
-  addToHistory: (item: SearchHistoryItem) => void;
-  removeFromHistory: (index: number) => void;
-  clearHistory: () => void;
-
-  // Favorites management
-  addFavorite: (favorite: Omit<SearchFavorite, 'id' | 'data_criacao'>) => void;
-  removeFavorite: (id: string) => void;
-  loadFavorite: (id: string) => void;
-
-  // Reset
-  reset: () => void;
+  setPageSize: (size: 12 | 24 | 36 | 48) => void;
+  addFavoriteSearch: (name: string, searchTerm?: string, filters?: SearchFilters) => void;
+  removeFavoriteSearch: (id: string) => void;
+  loadFavoriteSearch: (id: string) => void;
 }
-
-const initialState = {
-  searchTerm: '',
-  filters: {},
-  viewMode: 'grade' as const,
-  sortBy: 'relevancia' as const,
-  itemsPerPage: 24 as const,
-  currentPage: 1,
-  searchHistory: [],
-  favorites: [],
-};
 
 export const useSearchStore = create<SearchStore>()(n  persist(
     (set, get) => ({
-      ...initialState,
+      searchTerm: '',
+      filters: {},
+      sortBy: 'relevancia',
+      viewMode: 'grade',
+      pageSize: 24,
+      favoriteSearches: [],
 
-      setSearchTerm: (term) => set({ searchTerm: term, currentPage: 1 }),
+      setSearchTerm: (term) => set({ searchTerm: term }),
 
-      setFilters: (filters) => set({ filters, currentPage: 1 }),
+      setFilters: (filters) => set({ filters }),
 
       updateFilter: (key, value) =>
         set((state) => ({
-          filters: { ...state.filters, [key]: value },
-          currentPage: 1,
+          filters: {
+            ...state.filters,
+            [key]: value,
+          },
         })),
 
-      clearFilters: () => set({ filters: {}, currentPage: 1 }),
+      clearFilters: () => set({ filters: {} }),
+
+      setSortBy: (sortBy) => set({ sortBy }),
 
       setViewMode: (mode) => set({ viewMode: mode }),
 
-      setSortBy: (sort) => set({ sortBy: sort, currentPage: 1 }),
+      setPageSize: (size) => set({ pageSize: size }),
 
-      setItemsPerPage: (items) => set({ itemsPerPage: items, currentPage: 1 }),
+      addFavoriteSearch: (name, searchTerm, filters) => {
+        const newFavorite: FavoriteSearch = {
+          id: Date.now().toString(),
+          name,
+          searchTerm,
+          filters,
+          createdAt: new Date().toISOString(),
+        };
 
-      setCurrentPage: (page) => set({ currentPage: page }),
-
-      addToHistory: (item) =>
-        set((state) => {
-          const newHistory = [item, ...state.searchHistory].slice(0, 10);
-          return { searchHistory: newHistory };
-        }),
-
-      removeFromHistory: (index) =>
         set((state) => ({
-          searchHistory: state.searchHistory.filter((_, i) => i !== index),
+          favoriteSearches: [...state.favoriteSearches, newFavorite],
+        }));
+      },
+
+      removeFavoriteSearch: (id) =>
+        set((state) => ({
+          favoriteSearches: state.favoriteSearches.filter((fav) => fav.id !== id),
         })),
 
-      clearHistory: () => set({ searchHistory: [] }),
-
-      addFavorite: (favorite) =>
-        set((state) => {
-          const newFavorite: SearchFavorite = {
-            ...favorite,
-            id: `fav-${Date.now()}`,
-            data_criacao: new Date().toISOString(),
-          };
-          return { favorites: [...state.favorites, newFavorite] };
-        }),
-
-      removeFavorite: (id) =>
-        set((state) => ({
-          favorites: state.favorites.filter((f) => f.id !== id),
-        })),
-
-      loadFavorite: (id) => {
-        const favorite = get().favorites.find((f) => f.id === id);
+      loadFavoriteSearch: (id) => {
+        const favorite = get().favoriteSearches.find((fav) => fav.id === id);
         if (favorite) {
           set({
-            searchTerm: favorite.termo || '',
-            filters: favorite.filtros || {},
-            currentPage: 1,
+            searchTerm: favorite.searchTerm ?? '',
+            filters: favorite.filters ?? {},
           });
         }
       },
-
-      reset: () => set(initialState),
     }),
     {
       name: 'search-store',
-      partialize: (state) => ({
-        viewMode: state.viewMode,
-        sortBy: state.sortBy,
-        itemsPerPage: state.itemsPerPage,
-        searchHistory: state.searchHistory,
-        favorites: state.favorites,
-      }),
     }
   )
 );

@@ -1,10 +1,11 @@
 export type {
   SearchFilters,
   SearchParams,
+  Product,
   SearchResult,
-  SearchResponse,
-  SearchHistoryItem,
-  SearchFavorite,
+  FilterOption,
   FilterOptions,
+  SearchSuggestion,
+  SearchHistoryItem,
   AppliedFilter,
 } from './search';

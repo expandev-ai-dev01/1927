@@ -1,87 +1,98 @@
 export interface SearchFilters {
-  categoria?: string[];
-  faixa_preco?: {
-    minimo: number | null;
-    maximo: number | null;
-  };
-  material?: string[];
-  cor?: string[];
-  estilo?: string[];
-  dimensoes?: {
-    altura?: { minimo: number | null; maximo: number | null };
-    largura?: { minimo: number | null; maximo: number | null };
-    profundidade?: { minimo: number | null; maximo: number | null };
+  categories?: string[];
+  priceMin?: number;
+  priceMax?: number;
+  materials?: string[];
+  colors?: string[];
+  styles?: string[];
+  dimensions?: {
+    heightMin?: number;
+    heightMax?: number;
+    widthMin?: number;
+    widthMax?: number;
+    depthMin?: number;
+    depthMax?: number;
   };
 }
 
 export interface SearchParams {
-  termo_busca?: string;
-  codigo_produto?: string;
-  filtros?: SearchFilters;
-  ordenacao?:
+  searchTerm?: string;
+  filters?: SearchFilters;
+  sortBy?:
     | 'relevancia'
     | 'nome_asc'
     | 'nome_desc'
     | 'preco_asc'
     | 'preco_desc'
     | 'data_cadastro_desc';
-  pagina_atual?: number;
-  itens_por_pagina?: number;
+  pageNumber?: number;
+  pageSize?: 12 | 24 | 36 | 48;
 }
 
-export interface SearchResult {
-  id: string;
-  nome: string;
-  codigo: string;
-  descricao: string;
-  preco: number;
-  imagem_principal: string;
-  categoria: string;
+export interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  imageUrl: string;
+  category: string;
   material?: string;
-  cor?: string;
-  estilo?: string;
-  dimensoes?: {
-    altura?: number;
-    largura?: number;
-    profundidade?: number;
+  color?: string;
+  style?: string;
+  dimensions?: {
+    height?: number;
+    width?: number;
+    depth?: number;
   };
 }
 
-export interface SearchResponse {
-  resultados: SearchResult[];
-  total: number;
-  pagina_atual: number;
-  total_paginas: number;
-  sugestoes_alternativas?: string[];
-  produtos_relacionados?: SearchResult[];
+export interface SearchResult {
+  products: Product[];
+  totalResults: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
 }
 
-export interface SearchHistoryItem {
-  termo: string;
-  filtros?: SearchFilters;
-  data: string;
-  total_resultados: number;
-}
-
-export interface SearchFavorite {
-  id: string;
-  nome: string;
-  termo?: string;
-  filtros?: SearchFilters;
-  data_criacao: string;
+export interface FilterOption {
+  value: string;
+  label: string;
+  count: number;
 }
 
 export interface FilterOptions {
-  categorias: string[];
-  materiais: string[];
-  cores: string[];
-  estilos: string[];
-  preco_minimo: number;
-  preco_maximo: number;
+  categories: FilterOption[];
+  materials: FilterOption[];
+  colors: FilterOption[];
+  styles: FilterOption[];
+  priceRange: {
+    min: number;
+    max: number;
+  };
+  dimensionRanges: {
+    height: { min: number; max: number };
+    width: { min: number; max: number };
+    depth: { min: number; max: number };
+  };
+}
+
+export interface SearchSuggestion {
+  text: string;
+  type: 'product' | 'category' | 'term';
+  priority: number;
+}
+
+export interface SearchHistoryItem {
+  id: number;
+  searchTerm: string;
+  filters?: string;
+  resultCount: number;
+  createdAt: string;
 }
 
 export interface AppliedFilter {
-  tipo: string;
-  valor: string | number | { minimo: number | null; maximo: number | null };
+  type: 'category' | 'price' | 'material' | 'color' | 'style' | 'dimension';
   label: string;
+  value: string | number;
+  displayValue: string;
 }
